@@ -62,48 +62,39 @@ public class TestMain {
    }
 
    public static JSONObject doGet(String url) throws Exception {
-       JSONObject re = null;
        HttpClient httpClient = new HttpClient();
-       GetMethod httpGet = new GetMethod(url);
-       httpGet.getParams().setParameter(HttpMethodParams.RETRY_HANDLER, new DefaultHttpMethodRetryHandler());
-       HttpMethodParams.
-// RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(5000).setConnectionRequestTimeout(5000).setSocketTimeout(5000).build();
-//       httpGet.setConfig(requestConfig);
-       HttpResponse response = httpClient.execute(httpGet);
-       if(response.getStatusLine().getStatusCode() == HttpStatus.SC_OK){
-           HttpEntity entity = response.getEntity();
-           String result = EntityUtils.toString(entity);
-           re =  new JSONObject(result);
+       GetMethod getMethod = new GetMethod(url);
+       getMethod.getParams().setParameter(HttpMethodParams.RETRY_HANDLER, new DefaultHttpMethodRetryHandler());
+       int status = httpClient.executeMethod(getMethod);
+       if (status < 200 || status >=300 ) {
+       	throw new HttpException("Unexpected response status: " + status);
        }
-       return re;
+       String responseBody  = getMethod.getResponseBodyAsString();
+       getMethod.releaseConnection();
+       return new JSONObject(responseBody);     
    }
 
     public static JSONObject doPost(String url, JSONObject params) throws Exception {
-            try(CloseableHttpClient httpClient = HttpClients.createDefault()) {
-                HttpPost httpPost = new HttpPost(url);
-                List<NameValuePair> form = new ArrayList<>();
-                Iterator<String> it = params.keys();
-                while (it.hasNext()){
-                    String key = it.next();
-                    String vaule = params.getString(key);
-                    form.add(new BasicNameValuePair(key,vaule));
-                }
-                UrlEncodedFormEntity entity = new UrlEncodedFormEntity(form, Consts.UTF_8);
-                httpPost.setEntity(entity);
-                System.out.println("Executing request " + httpPost.getRequestLine());
-                // Create a custom response handler
-                ResponseHandler<String> responseHandler = response -> {
-                    int status = response.getStatusLine().getStatusCode();
-                    if (status >= 200 && status < 300) {
-                        HttpEntity responseEntity = response.getEntity();
-                        return responseEntity != null ? EntityUtils.toString(responseEntity) : null;
-                    } else {
-                        throw new ClientProtocolException("Unexpected response status: " + status);
-                    }
-                };
-                String responseBody = httpClient.execute(httpPost, responseHandler);
-                return new JSONObject(responseBody);
-            }
+        HttpClient httpClient = new HttpClient();
+        PostMethod postMethod = new PostMethod();
+        postMethod.setRequestHeader("Content-Type","application/x-www-form-urlencoded;charset=utf-8");
+        NameValuePair[] form = {};      
+        Iterator<String> it = params.keys();
+        int i = 0;
+        while (it.hasNext()){
+            String key = it.next();
+            String vaule = params.getString(key);
+            form[i] = new NameValuePair(key,vaule);
+            i++;
+        }
+        postMethod.setRequestBody(form);
+        int status = httpClient.executeMethod(postMethod);
+        if (status < 200 || status >=300 ) {
+        	throw new HttpException("Unexpected response status: " + status);
+        }
+        String responseBody  = postMethod.getResponseBodyAsString();
+        postMethod.releaseConnection();
+        return new JSONObject(responseBody);          
     }
 
 }
